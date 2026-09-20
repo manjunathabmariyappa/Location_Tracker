@@ -9,14 +9,37 @@ service cloud.firestore {
       return memberOf(familyId) && get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'admin' && get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.status == 'active';
     }
 
+    // Lets a signed-in user look up every group they belong to (across all
+    // families) via a single collection-group query on `members`, filtered to
+    // their own uid. A user can only ever read their OWN membership records —
+    // never anyone else's — which is what makes group membership "persist"
+    // across logins instead of requiring the app to already know the ID.
+    match /{path=**}/members/{uid} {
+      // Uses resource.data (not the path wildcard) since that's the
+      // documented, provably-safe comparison Firestore supports for
+      // collection-group `list` queries, not just single-document `get`s.
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     match /families/{familyId} {
       allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow read: if memberOf(familyId);
+      // `resource == null` lets anyone check whether a given short Group ID
+      // is already taken (needed when generating a new one) without leaking
+      // any actual data — an *existing* family's data is still only
+      // readable by its members.
+      allow read: if resource == null || memberOf(familyId);
       allow update, delete: if adminOf(familyId);
 
       match /members/{uid} {
+        // Three ways a members/{uid} doc can be created:
+        // 1. Bootstrapping the admin doc right after the family itself is created.
+        // 2. An existing admin adding someone directly.
+        // 3. A member self-joining by proving they know the group password — the
+        //    passwordHash they submit must match the one stored (server-side only,
+        //    via get()) on the family doc. No Cloud Function required.
         allow create: if signedIn() && uid == request.auth.uid && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'admin' && get(/databases/$(database)/documents/families/$(familyId)).data.createdBy == request.auth.uid
-          || adminOf(familyId) && request.resource.data.uid == uid;
+          || adminOf(familyId) && request.resource.data.uid == uid
+          || signedIn() && uid == request.auth.uid && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'member' && request.resource.data.passwordHash == get(/databases/$(database)/documents/families/$(familyId)).data.passwordHash;
         allow read: if memberOf(familyId);
         allow update: if (uid == request.auth.uid && memberOf(familyId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'sharingEnabled'])) || adminOf(familyId);
         allow delete: if adminOf(familyId);
@@ -26,10 +49,6 @@ service cloud.firestore {
         allow read: if memberOf(familyId);
         allow create, update: if uid == request.auth.uid && memberOf(familyId) && request.resource.data.uid == request.auth.uid && request.resource.data.latitude is number && request.resource.data.longitude is number && request.resource.data.accuracy is number;
         allow delete: if uid == request.auth.uid || adminOf(familyId);
-      }
-
-      match /invitations/{inviteId} {
-        allow read, write: if adminOf(familyId);
       }
     }
   }

@@ -40,7 +40,7 @@ function buildHtml(points: { uid: string; latitude: number; longitude: number; l
 </html>`;
 }
 
-export function FamilyMap({ members, locations }: { members: FamilyMember[]; locations: MemberLocation[] }) {
+export function FamilyMap({ members, locations, fullScreen }: { members: FamilyMember[]; locations: MemberLocation[]; fullScreen?: boolean }) {
   const points = useMemo(
     () =>
       locations.map(location => ({
@@ -53,7 +53,7 @@ export function FamilyMap({ members, locations }: { members: FamilyMember[]; loc
   );
   const html = useMemo(() => buildHtml(points), [points]);
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, fullScreen ? styles.containerFullScreen : null]}>
       <WebView
         style={StyleSheet.absoluteFill}
         originWhitelist={['*']}
@@ -77,5 +77,6 @@ export function FamilyMap({ members, locations }: { members: FamilyMember[]; loc
 
 const styles = StyleSheet.create({
   container: { height: 320, overflow: 'hidden', borderRadius: 12 },
+  containerFullScreen: { height: undefined, flex: 1, borderRadius: 0 },
   empty: { position: 'absolute', alignSelf: 'center', top: 130, backgroundColor: 'white', padding: 12, borderRadius: 8 },
 });

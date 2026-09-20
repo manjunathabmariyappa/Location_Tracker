@@ -5,7 +5,7 @@ module.exports = {
   expo: {
     name: 'Family Safety Tracker',
     slug: 'family-safety-tracker',
-    version: '0.1.0',
+    version: '0.2.0',
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
     scheme: 'familysafety',
@@ -19,6 +19,7 @@ module.exports = {
         'FOREGROUND_SERVICE',
         'FOREGROUND_SERVICE_LOCATION',
         'POST_NOTIFICATIONS',
+        'REQUEST_INSTALL_PACKAGES',
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
       ],
