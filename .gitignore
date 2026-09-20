@@ -10,6 +10,7 @@ google-services.json
 !.env.example
 .firebaserc
 *.keystore
+!debug.keystore
 *.jks
 functions/lib/
 functions/node_modules/
