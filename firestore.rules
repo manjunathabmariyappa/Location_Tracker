@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function memberOf(familyId) {
+      return signedIn() && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+    }
+    function adminOf(familyId) {
+      return memberOf(familyId) && get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'admin' && get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.status == 'active';
+    }
+
+    match /families/{familyId} {
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow read: if memberOf(familyId);
+      allow update, delete: if adminOf(familyId);
+
+      match /members/{uid} {
+        allow create: if signedIn() && uid == request.auth.uid && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'admin' && get(/databases/$(database)/documents/families/$(familyId)).data.createdBy == request.auth.uid
+          || adminOf(familyId) && request.resource.data.uid == uid;
+        allow read: if memberOf(familyId);
+        allow update: if (uid == request.auth.uid && memberOf(familyId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'sharingEnabled'])) || adminOf(familyId);
+        allow delete: if adminOf(familyId);
+      }
+
+      match /locations/{uid} {
+        allow read: if memberOf(familyId);
+        allow create, update: if uid == request.auth.uid && memberOf(familyId) && request.resource.data.uid == request.auth.uid && request.resource.data.latitude is number && request.resource.data.longitude is number && request.resource.data.accuracy is number;
+        allow delete: if uid == request.auth.uid || adminOf(familyId);
+      }
+
+      match /invitations/{inviteId} {
+        allow read, write: if adminOf(familyId);
+      }
+    }
+  }
+}

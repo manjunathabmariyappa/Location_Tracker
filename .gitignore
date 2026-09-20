@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+dist/
+android/.gradle/
+android/local.properties
+android/app/google-services.json
+google-services.json
+.env
+.env.*
+!.env.example
+.firebaserc
+*.keystore
+*.jks
+functions/lib/
+functions/node_modules/
+.DS_Store
